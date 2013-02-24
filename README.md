@@ -9,9 +9,9 @@ Geb](http://blog.codecentric.de/en/2013/02/browser-automation-and-acceptance-tes
 The example are using an adapted version of Tobias Flohre`s [moviedatabase project](https://github.com/mlex/movie-database), which he built as an example for [a real ROCA using Bootstrap, jQuery, Thymeleaf, Spring HATEOAS and Spring MVC](http://blog.codecentric.de/en/2013/01/a-real-roca-using-bootstrap-jquery-thymeleaf-spring-hateoas-and-spring-mvc/). Thanks Tobias, for letting me shamelessly use your project ;-)
 
 The geb-demo consists of three parts:
-* The "basic-testing" folder contains the examples of the presentation (one simple test-case and one test-case using page objects).
-* The "advanced-page-objects" folder contains some more tests using page objects and asynchronous assertions (Geb's waitFor feature).
-* In the folder "cucumber-demo", you can find a demonstration, how to integrate Geb with cucumber-jvm.
+* The "basic" folder contains the examples of the presentation (one simple test-case and one test-case using page objects).
+* The "advanced" folder contains some more tests using page objects and asynchronous assertions (Geb's waitFor feature).
+* In the folder "cucumber", you can find a demonstration, how to integrate Geb with cucumber-jvm.
 
 
 The execution is the same for all examples. They are all maven projects. See the following instructions.
