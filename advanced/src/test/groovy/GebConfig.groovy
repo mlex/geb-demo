@@ -1,15 +1,13 @@
 /*
 	This is the Geb configuration file.
-	
+
 	See: http://www.gebish.org/manual/current/configuration.html
 */
 
 import org.openqa.selenium.firefox.FirefoxDriver
 import org.openqa.selenium.chrome.ChromeDriver
-import org.openqa.selenium.phantomjs.PhantomJSDriver
 import org.openqa.selenium.remote.RemoteWebDriver
 import org.openqa.selenium.remote.DesiredCapabilities
-import org.openqa.selenium.remote.CapabilityType
 import org.openqa.selenium.htmlunit.HtmlUnitDriver
 
 // disabling javascript this way doesnt work :(
@@ -27,12 +25,6 @@ environments {
 
     chrome {
         driver = { new ChromeDriver(caps) }
-    }
-
-    phantomjs {
-        driver = {
-            new PhantomJSDriver(caps)
-        }
     }
 
     remote {
