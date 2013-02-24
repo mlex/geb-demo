@@ -1,0 +1,146 @@
+This post focuses on the technical side of automated acceptance tests for web applications. There are a lot of high-level frameworks, that allow definition of acceptance tests in natural language (Robot, JBehave, Cucumber, ...). But when it comes to the technical implementation of the test cases, you are often forced to use the rather low-level WebDriver API directly. 
+
+<a href="http://www.gebish.org">Geb</a> addresses exactly this problem. It is an abstraction of the WebDriver API and combines the expressive and concise Groovy language with a jQuery-like selection and traversal API. This makes the test implementation easier and the code more readable. On top of that, you get support for the page object pattern, asynchronous content lookup and a very good integration in existing test frameworks. 
+<!--more-->
+
+<h2>Quickstart with the Groovy Shell</h2> 
+
+If you want to start playing around with Geb immediately, just open up a <a href="http://groovy.codehaus.org/Groovy+Shell">Groovy Shell</a> (normally via <em>groovysh</em>) and type in the following lines. Of course, you can also save these lines to a file and execute it with groovy. But for trying out new things, I think the Groovy Shell is a good starting point.
+<pre lang="groovy">
+import groovy.grape.Grape
+Grape.grab(group:"org.gebish", module:"geb-core", version:"0.9.0-RC-1")
+Grape.grab(group:"org.seleniumhq.selenium", module:"selenium-firefox-driver", version:"2.28.0")
+import geb.Browser
+
+browser = new Browser() 
+
+// the duckduckgo website has a much cleaner structure than google
+// that makes it a better choice for demonstrating browser automation
+browser.go "https://duckduckgo.com/"
+</pre>
+
+After loading the necessary libraries with <a href="http://groovy.codehaus.org/Grape">Grape</a>, a new <em>Browser</em> instance is created. At this point, nothing else happens. When calling the <em>go</em>-method, a firefox opens up and navigates to "http://duckduckgo.com". In the background Geb searches for available WebDriver implementations. It will find the previously loaded <em>FirefoxDriver</em> and will use it to start a new browser and connect to it. Now we can control the firefox via the <em>Browser</em> instance. For example, we can search for the term "Groovy Browser Automation" and click on the first result.
+
+<pre lang="groovy">
+// fill the search input field with the searchterm 
+// ".q" is just a shortcut for find("input", name:"q")
+browser.find("#search_form_homepage").q = "Groovy Browser Automation"
+
+// click the button with id "search_button_homepage"
+browser.find("#search_button_homepage").click()
+
+// click the first "a"-tag below the element with class "links_main" 
+browser.find(".links_main").find("a", 0).click()
+</pre>
+
+In this little example, we already see one of Geb's core features: the jQuery-like syntax for selecting elements. You can use a great variety of CSS-selectors and attribute-matchers, you can filter the result-set or find descendants. And you can easily iterate over the result-set (like we do in the next example). For more information on element selection and traversal, have a look at Geb's reference documentation (the "<a href="http://www.gebish.org/manual/0.9.0-RC-1/">The Book of Geb</a>"). It is not only a complete overview of Geb's features (including configuration and integration in test frameworks and build systems), but also a good starting point for anybody who wants to learn more about Geb.
+ 
+When using Geb outside the Groovy Shell, it is probably not very convenient to type "browser" over and over again. Thankfully, Geb offers a shortcut: the <em>drive</em> method accepts a closure, where all method-calls are delegated to the underlying <em>Browser</em> instance. In the next example, we extract the items of the sidemenu from the Geb-Homepage. We also show another handy shortcut: instead of <em>find</em>, we can use <em>$</em>. Those already familiar with jQuery, probably aren't too surprised by this choice.
+
+<pre lang="groovy">
+browser.drive({
+    go "http://www.gebish.org/"
+    $(".sidemenu a").each({
+        element -> println element.text()
+    })
+})
+</pre>
+
+You have seen, how easy it is to do browser automation with Geb. In simple scripts, it is enough to create a <em>Browser</em> instance and use its <em>drive</em> method. But Geb is much more than a helper for browser automation scripts. So let's have look at something more interesting: Testing.
+
+<h2>Integration with the Spock Testing Framework</h2>
+
+Spock is one of the most popular testing frameworks for the Groovy language. And Geb comes with an excellent integration for Spock. I won't go through the details of configuring Geb and Spock in a maven (or gradle) project. Detailed instructions, how to do this, can be found in the Book of Geb. I can also recommend the  <a href="https://github.com/geb/geb-example-maven">geb-maven-example on GitHub</a>. 
+
+The Spock integration of Geb comes with a subclass of Spock's <em>Specification</em> class. Inside test methods, you have the same possibilities as when using the <em>Browser.drive</em> method. You have access to a <em>Browser</em> instance via the <em>browser</em> property. Geb takes care of configuring and starting the browser before the tests (as well as closing the browser once the tests are finished). Just like inside a <em>drive</em> block, you don't have to use the <em>browser</em> property. All unknown methods are directly delegated to it. This makes the tests very clean and readable. As an example, the following test makes sure, that the Geb homepage is the first result when searching for "Groovy Browser Automation". 
+
+<pre lang="groovy">
+import geb.spock.GebSpec
+
+class SearchSpec extends GebReportingSpec {
+    def "search 'Groovy Browser Automation' in duckduckgo"() {
+        given: "we are on the duckduckgo search-engine"
+            go "http://duckduckgo.com"
+ 
+        when: "we search for 'Groovy Browser Automation'"
+            $("#search_form_homepage").q = "Groovy Browser Automation"
+            $("#search_button_homepage").click()
+ 
+        then: "the first result is the geb website"
+            assert $("#links").find(".links_main a", 0).attr("href") == "http://www.gebish.org/"            
+    }
+}
+</pre>
+
+By default, Geb searches the classpath for an available WebDriver. This is enough, if you just want to play around. In a real-world-project however, there are more things to consider. In the CI environment you'd want to run the tests in a headless mode (for example using <a href="http://phantomjs.org">PhantomJS</a> and <a href="https://github.com/detro/ghostdriver">GhostDriver</a>). If you're developing a ROCA application, perhaps you also want to check how your application behaves when JavaScript is disabled. Then HtmlDriver is a possible option. This can be achieved by defining different profiles for Geb. Just place a file <em>GebConfig.groovy</em> inside your classpath and Geb will automatically read profile definitions from there. The profile itself is then determined by the system property <em>geb.build.profile</em>. Take a look at my <a href="https://github.com/mlex/geb-demo">geb-demo project on GitHub</a> to see profiles in action. The project's README file also contains detailed instructions, how to execute the tests with maven and how to set up the necessary infrastructure (e.g. a PhantomJS daemon).
+
+<b>Tip:</b> Geb provides yet another base class for spock-tests: <em>GebReportingSpec</em>. The only difference to <em>GebSpec</em> is, that <em>GebReportingSpec</em> automatically takes a screenshot for failed tests. This can be very helpful when you search the reason for failing tests.
+
+<h2>The Page Object Pattern</h2> 
+
+Tests are often treated as second-class citizens. But the same principles, that adhere to production code, can and must be applied to test-code. "Open/Closed" and "DRY" are such principles. And the Page Object Pattern is a means to observe these two. The idea behind page objects is quite simple: Each screen (page) of the web application is represented by an object (page object). Similar pages are represented by objects of the same class. The information and possible user interactions of a page (or a class of pages) are described by the properties and methods of the corresponding page object (or its class).
+
+Geb provides support for the page object pattern via the <em>Page</em> class. The elements and possible actions of a page are described inside the <em>content</em> block using a simple DSL. To illustrate how this works, we take the movie database application of <a href="http://blog.codecentric.de/en/2013/01/a-real-roca-using-bootstrap-jquery-thymeleaf-spring-hateoas-and-spring-mvc/">Tobias Flohre's recent blog post on ROCA</a> and write some acceptance tests. The code of the following examples (including maven configuration and README) can be found in my <a href="https://github.com/mlex/movie-database">geb-demo project on GitHub</a>.
+
+One can quickly make out candidates for page objects in the movie database: The initial page could be labeled <em>MovieListPage</em>. When you click on a movie, the details to this movie are displayed (<em>MovieDetailPage</em>). And a click on the "Edit" button leads to a simple form to change these details (<em>MovieEditPage</em>). The implementation for the <em>MovieListPage</em> could look like this:
+<pre lang="groovy">
+import geb.Page
+
+class MovieListPage extends Page {
+    static content = {
+        searchform { $(".form-search") }
+        searchSubmitButton { searchform.find(type: "submit")}
+
+	// this defines a method "searchFor" that takes a single argument
+	// the search-form is filled with the given argument and the search-button is clicked
+        searchFor { searchTerm ->
+            searchform.searchString = searchTerm
+            searchSubmitButton.click()
+        }
+
+	// required=false is needed, because otherwise Geb would automatically throw
+        // an AssertionException when the method returns nothing
+        movie(required: false) { movieName -> $("td", text: movieName).parent() }
+        containsMovie(required: false) { movieName ->  movie(movieName).present }
+        
+        movieCount { $("#pageContent tr").size() }
+    }
+}
+</pre>
+
+This definition of the <em>MovieListPage</em> is now the base for tests of the movie database's search feature. In the following example, we navigate to "http://localhost:8080/moviedatabase". With the <em>at</em>-method, we tell Geb, that the current screen should be represented by an instance of <em>MovieListPage</em>. After doing so, the <em>Browser</em> automatically delegates all unknown method calls to this object. And because <em>GebSpec</em> delegates all calls to the underlying <em>Browser</em> instance, we can directly call any method of the <em>MovieListPage</em> (e.g. the <em>searchFor</em> method to execute a search). At the end of the test, you can see one of Geb's other nice features: asynchronous content lookup. Because the search result is loaded via ajax, there is no full page reload. So we tell Geb to wait up to 5 seconds (the default timeout) for the search result to show up. If the movie list doesn't contain "Star Wars" after 5 seconds, the test fails. 
+
+<pre lang="groovy">
+class SearchSpec extends GebSpec {
+    def "search for 'star' contains movie 'Star Wars'"() {
+        given: "we are on the movie database homepage"
+            go "http://localhost:8080/moviedatabase"
+            at MovieListPage
+        
+        when: "we search for 'star'"
+            searchFor("star")
+            at MovieListPage
+        
+        then: "the search result contains 'Star Wars'"
+            // the waitFor is needed because the movie-database uses javascript
+            // heavily and the click on the searchbutton doesnt trigger a page-reload
+            waitFor { containsMovie("Star Wars") }
+    }
+
+    def "search for 'foo' returns empty result"() {
+        given: "we are on the movie database homepage":
+            go "http://localhost:8080/moviedatabase"
+            at MovieListPage
+        
+        when: "we search for 'star'"
+            searchFor("foo")
+            at MovieListPage
+
+        then: "the search result is empty"
+            waitFor { movieCount() == 0 }
+    }
+}
+</pre>
+
+<h2>Conclusion</h2>
+Geb is not only a very nice DSL for browser automation, it has also many powerful features. Most notably the jQuery-like selection API and the support for the Page Object Pattern. Another highlight is the <a href="http://www.gebish.org/async">asynchronous content lookup</a>. There is support for existing test frameworks  like Spock, easyb, JUnit and TestNG. Integration for JBehave or cucumber-jvm is also possible with the <a href="http://www.gebish.org/manual/0.9.0-RC-1/binding.html#the_binding_environment"><em>BindingUpdater</em></a>. Getting started is easy and the documentation answers questions before they arise. There is no reason why you shouldn't give it a try ;-)
