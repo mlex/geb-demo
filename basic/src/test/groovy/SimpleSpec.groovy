@@ -15,7 +15,8 @@ class SimpleSpec extends GebReportingSpec {
         // fill the input form
         def form = $("#pageContent form")
         form.title = "Django Unchained"
-        form.startDate = "2012-01-17"
+        // It seems, there is a problem with input type=date in phantomjs, so we leave the date-field empty
+        // form.startDate = "2012-01-17"
         form.description = "The latest Tarantino - a romantic movie?"
 
         // submit the form 
@@ -26,9 +27,7 @@ class SimpleSpec extends GebReportingSpec {
         // assert that the new movie is displayed in the movie-list
 	// use waitFor, because the result is loaded via ajax
         waitFor {
-            assert $("#pageContent tr").any {
-                it.find("td", 0).text() == "Django Unchained"
-            }
+            $("#pageContent tr")*.find("td", 0)*.text().contains("Django Unchained")
         }
     }
 }

@@ -1,0 +1,14 @@
+src/main/webapp/META-INF/MANIFEST.MF
+*.class
+*.jar
+*.war
+*.ear
+*/target
+/.springBeans
+/.project
+/.classpath
+/.settings
+/.externalToolBuilders
+/.idea
+*.iml
+*~
